@@ -1,0 +1,76 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+project_name = "{{cookiecutter.project_name}}"
+domains = ['www']
+databases = [] # = ["www/db.sql", "site2/db-cakephp.sql"] # Starting from the /data/_sql folder
+aliases = [] # = ['site2.dev', 'site3.dev'] # Only needed for subdomains other than main <project_name>.dev domain
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "box-cutter/centos72"
+  # set hostname for dev environment
+  config.vm.hostname = project_name +".dev"
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", type: "dhcp"
+  config.vm.provider "parallels" do |prl|
+    prl.name = project_name
+    prl.customize ["set", :id, "--autostart", "auto"]
+  end
+  config.vm.provider "virtualbox" do |v|
+    v.name = project_name
+    v.gui = true # Enable the GUI
+    # Saves time setting up by using linked clone versions of boxes, rather than full copies
+    v.linked_clone = true if Vagrant::VERSION =~ /^1.8/
+    v.customize ["modifyvm", :id, "--autostart-enabled", "on"]
+    #Sync time more often (times gets out of sync if host goes to sleep)
+    v.customize [ "guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 10000 ]
+  end
+  config.hostmanager.enabled = false # Disable default to run as a provisioner later
+  config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = true
+  config.hostmanager.include_offline = false
+  # Make hostmanager work with DHCP addresses, from https://github.com/devopsgroup-io/vagrant-hostmanager/issues/86
+  cached_addresses = {}
+  config.hostmanager.ip_resolver = proc do |vm, resolving_vm|
+    if cached_addresses[vm.name].nil?
+      if hostname = (vm.ssh_info && vm.ssh_info[:host])
+        vm.communicate.execute("hostname -I | cut -d ' ' -f 2") do |type, contents|
+          cached_addresses[vm.name] = contents.split("\n").first[/(\d+\.\d+\.\d+\.\d+)/, 1]
+        end
+      end
+    end
+    cached_addresses[vm.name]
+  end
+  config.hostmanager.ignore_private_ip = false
+  
+  unless aliases.empty?
+    config.hostmanager.aliases = aliases
+  end
+
+  # Disable the default synced folder, it's not necessary, see next line
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  # sync our working directory to the main website folder /var/www
+  config.vm.synced_folder "./", "/srv/vhosts/"+ project_name
+  # Initial Server provision script (Only runs on first vagrant up) to install Apache, PHP, MySQL, OpenSSL
+  config.vm.provision "shell", env: { "project_name" => project_name}, path: "_provision/initialize.sh"
+
+  provision_script = ''
+  
+  for i in domains
+    provision_script << "ln -s /srv/vhosts/"+ project_name +"/config/"+ i +".dev.conf /etc/httpd/vhosts.d/"+ i +"."+ project_name +".dev.conf\n"
+  end
+
+  # Import project databases
+  unless databases.empty?
+    for i in databases
+        provision_script << "mysql -u root -proot < /srv/vhosts/"+ project_name +"/data/_sql/"+ i +"\n"
+    end
+  end
+
+  config.vm.provision "shell", inline: provision_script
+
+  # Provision script which runs every time the machine starts
+  config.vm.provision "shell", run: "always", path: "_provision/startup.sh"
+  config.vm.provision :hostmanager
+end

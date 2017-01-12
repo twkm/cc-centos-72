@@ -1,0 +1,7 @@
+{
+    "admin_email": "admin@twkm.ca",
+    "project_name": "_project",
+    "_copy_without_render": [
+    	"data/adminer/index.php"
+    ]
+}

@@ -1,0 +1,26 @@
+# Machine-specific files #
+##########################
+
+logs/*
+!logs/.*
+config/ssl/*.live.*
+
+.vagrant
+
+# IDE and editor specific files #
+#################################
+/nbproject
+.idea
+prepros.cfg
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+*.mo
