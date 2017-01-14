@@ -49,7 +49,7 @@ printf "\n#Custom aliases and environment variables added with vagrant provision
 printf "\nlong_query_time=1" >> /etc/my.cnf
 printf "\nlog-slow-queries=/srv/vhosts/${project_name}/logs/slow_queries_log" >> /etc/my.cnf
 printf "\nlog-queries-not-using-indexes" >> /etc/my.cnf
-service mysqld start
+systemctl start mysqld.service
 chkconfig --level 345 mysqld on
 # Set root:root for dev environment
 mysqladmin password root
@@ -70,4 +70,4 @@ if [ ! -f /srv/vhosts/${project_name}/config/ssl/www.dev.crt ]; then
         -out /srv/vhosts/${project_name}/config/ssl/www.dev.crt
 fi
 
-systemctl start httpd.service
+systemctl enable httpd.service
