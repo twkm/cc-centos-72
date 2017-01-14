@@ -69,3 +69,5 @@ if [ ! -f /srv/vhosts/${project_name}/config/ssl/www.dev.crt ]; then
         -keyout /srv/vhosts/${project_name}/config/ssl/www.dev.key \
         -out /srv/vhosts/${project_name}/config/ssl/www.dev.crt
 fi
+
+systemctl start httpd.service
